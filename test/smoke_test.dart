@@ -1,6 +1,7 @@
 import 'package:bio/components/global.dart';
 import 'package:bio/components/section.dart';
 import 'package:bio/components/state_button.dart';
+import 'package:bio/content.dart';
 import 'package:bio/main.dart';
 import 'package:bio/state/app_state.dart';
 import 'package:flutter/gestures.dart';
@@ -58,9 +59,9 @@ void main() {
     // собраться в EN целиком (0.27^14 ~ 1e-8)...
     await tester.pump(const Duration(milliseconds: 80));
     expect(find.text('Fedor Kiriakov'), findsNothing);
-    // ...а длинный RU-абзац гарантированно уже тронут: вероятность, что ни
-    // один из ~135 символов не переключился, пренебрежимо мала (0.73^135).
-    expect(find.textContaining('автоматизируем'), findsNothing);
+    // ...а длинный RU-абзац гарантированно уже тронут: вероятность, что все
+    // ~135 символов остались на месте, пренебрежимо мала (0.73^135).
+    expect(find.text(Strings.ru.aboutItems[0]), findsNothing);
 
     await tester.pumpAndSettle();
 

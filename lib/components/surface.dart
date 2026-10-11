@@ -16,6 +16,7 @@ class FSurface extends StatefulWidget {
     this.constraints,
     this.margin,
     this.color,
+    this.lift = false,
     this.elevation = 1,
     this.hilight = 0,
     this.round = false,
@@ -34,6 +35,13 @@ class FSurface extends StatefulWidget {
 
   /// Фиксированный цвет заливки вместо темы-лерпа (например, бейджи).
   final Color? color;
+
+  /// Приподнимает поверхность в положении покоя, как у кнопок: сдвиг вверх
+  /// в светлой теме и «доводка» вниз при нажатии и смене темы. По умолчанию
+  /// выключено: статичным поверхностям (бейджи, карточки, фото) движение
+  /// ни к чему — без него они не съезжают относительно соседей и не прыгают
+  /// при анимации темы.
+  final bool lift;
 
   final double elevation;
   final double hilight;
@@ -104,31 +112,34 @@ class _FSurfaceState extends State<FSurface> {
     final borderAlpha = lerpDouble(palette.borderRestAlpha, palette.borderPressAlpha, pressK)!;
     final borderWidth = lerpDouble(palette.borderRestWidth, palette.borderPressWidth, pressK)!;
 
+    final surface = Container(
+      alignment: widget.alignment,
+      padding: widget.padding,
+      width: widget.width,
+      height: widget.height,
+      margin: widget.margin,
+      constraints:
+          widget.constraints ?? BoxConstraints(minHeight: Global.radius * 2, minWidth: Global.radius * 2),
+      clipBehavior: widget.clip ? Clip.antiAlias : Clip.none,
+      decoration: BoxDecoration(
+        color: widget.color ??
+            Color.lerp(palette.background, palette.backgroundHilight, widget.hilight),
+        borderRadius: BorderRadius.circular(widget.round ? 1000 : Global.radius),
+        border: borderWidth > 0
+            ? Border.all(
+                color: palette.borderColor.withValues(alpha: borderAlpha),
+                width: borderWidth,
+              )
+            : null,
+        boxShadow: [shadow],
+      ),
+      child: widget.child,
+    );
+
+    if (!widget.lift) return surface;
     return Transform.translate(
       offset: Offset(0, -3 * widget.elevation * (1 - localThemeT)),
-      child: Container(
-        alignment: widget.alignment,
-        padding: widget.padding,
-        width: widget.width,
-        height: widget.height,
-        margin: widget.margin,
-        constraints:
-            widget.constraints ?? BoxConstraints(minHeight: Global.radius * 2, minWidth: Global.radius * 2),
-        clipBehavior: widget.clip ? Clip.antiAlias : Clip.none,
-        decoration: BoxDecoration(
-          color: widget.color ??
-              Color.lerp(palette.background, palette.backgroundHilight, widget.hilight),
-          borderRadius: BorderRadius.circular(widget.round ? 1000 : Global.radius),
-          border: borderWidth > 0
-              ? Border.all(
-                  color: palette.borderColor.withValues(alpha: borderAlpha),
-                  width: borderWidth,
-                )
-              : null,
-          boxShadow: [shadow],
-        ),
-        child: widget.child,
-      ),
+      child: surface,
     );
   }
 }

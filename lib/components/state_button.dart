@@ -173,6 +173,7 @@ class FStateButtonState extends State<FStateButton>
               animation: hilightTween,
               builder: (context, internalChild) {
                 return FSurface(
+                  lift: true,
                   elevation: elevationTween.value,
                   hilight: hilightTween.value * elevationTween.value,
                   child: externalChild!,
