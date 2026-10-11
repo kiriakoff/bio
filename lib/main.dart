@@ -1,4 +1,5 @@
 import 'package:bio/components/global.dart';
+import 'package:bio/components/narrow_overlay.dart';
 import 'package:bio/components/smooth_scroll.dart';
 import 'package:bio/components/wave_painter.dart';
 import 'package:bio/sections/about.dart';
@@ -40,6 +41,9 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
     Global.apply(app.palette);
+    // Слишком узкое окно: страницу не строим вовсе (всё равно пережата),
+    // вместо неё — плашка с просьбой расширить окно.
+    final tooNarrow = MediaQuery.sizeOf(context).width < NarrowOverlay.minWidth;
     return Directionality(
       textDirection: TextDirection.ltr,
       child: ColoredBox(
@@ -49,29 +53,31 @@ class _MyAppState extends State<MyApp> {
             Positioned.fill(
               child: CustomPaint(painter: WavePainter(app)),
             ),
-            SingleChildScrollView(
-              controller: _scrollController,
-              child: FSmoothScroll(
+            if (!tooNarrow)
+              SingleChildScrollView(
                 controller: _scrollController,
-                child: Center(
-                  child: Container(
-                    constraints: BoxConstraints(maxWidth: 660),
-                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-                    child: Column(
-                      spacing: 32,
-                      children: [
-                        TogglesSection(),
-                        HeadSection(),
-                        AboutSection(),
-                        StackSection(),
-                        NowSection(),
-                        FooterSection(),
-                      ],
+                child: FSmoothScroll(
+                  controller: _scrollController,
+                  child: Center(
+                    child: Container(
+                      constraints: BoxConstraints(maxWidth: 660),
+                      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+                      child: Column(
+                        spacing: 32,
+                        children: [
+                          TogglesSection(),
+                          HeadSection(),
+                          AboutSection(),
+                          StackSection(),
+                          NowSection(),
+                          FooterSection(),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+            Positioned.fill(child: NarrowOverlay(visible: tooNarrow)),
           ],
         ),
       ),

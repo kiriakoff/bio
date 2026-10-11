@@ -1,4 +1,5 @@
 import 'package:bio/components/global.dart';
+import 'package:bio/components/narrow_overlay.dart';
 import 'package:bio/components/section.dart';
 import 'package:bio/components/state_button.dart';
 import 'package:bio/components/surface.dart';
@@ -69,6 +70,40 @@ void main() {
     // К концу анимации весь текст зафиксировался в EN.
     expect(find.text('Fedor Kiriakov'), findsOneWidget);
     expect(find.text('About'), findsOneWidget);
+  });
+
+  testWidgets('narrow window overlay covers page and localizes', (tester) async {
+    final appState = AppState();
+    tester.view.devicePixelRatio = 3;
+    tester.view.physicalSize = const Size(280 * 3, 700 * 3); // узкое окно
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: appState,
+        child: const MyApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    AnimatedOpacity overlayOpacity() => tester.widget<AnimatedOpacity>(find.descendant(of: find.byType(NarrowOverlay), matching: find.byType(AnimatedOpacity)));
+
+    expect(find.text('Сделай пошире'), findsOneWidget);
+    expect(overlayOpacity().opacity, 1);
+    // Страница в узком режиме не строится вовсе — «вместо», а не «поверх».
+    expect(find.text('Фёдор Кирьяков'), findsNothing);
+
+    // Расширили окно — плашка полностью растворилась.
+    tester.view.physicalSize = const Size(900 * 3, 700 * 3);
+    await tester.pumpAndSettle();
+    expect(overlayOpacity().opacity, 0);
+
+    // Снова узко и переключили язык — сообщение локализовалось.
+    tester.view.physicalSize = const Size(280 * 3, 700 * 3);
+    appState.setLanguage(AppLanguage.en);
+    await tester.pumpAndSettle();
+    expect(find.text('Make it wider'), findsOneWidget);
+    expect(overlayOpacity().opacity, 1);
   });
 
   testWidgets('theme toggle switches palette', (tester) async {
@@ -149,8 +184,7 @@ void main() {
         .first;
 
     // Поверхность не должна щёлкаться в светлую на старте перехода.
-    final decorationAtStart = tester.widget<DecoratedBox>(cardDecoration).decoration
-        as BoxDecoration;
+    final decorationAtStart = tester.widget<DecoratedBox>(cardDecoration).decoration as BoxDecoration;
     expect(decorationAtStart.color, Palette.dark.background);
 
     await tester.pumpAndSettle();
@@ -158,8 +192,7 @@ void main() {
     expect(appState.themeT, 0.0);
 
     // По окончании перехода поверхность обязана быть светлой, а не застрять в тёмной.
-    final decorationAtEnd = tester.widget<DecoratedBox>(cardDecoration).decoration
-        as BoxDecoration;
+    final decorationAtEnd = tester.widget<DecoratedBox>(cardDecoration).decoration as BoxDecoration;
     expect(decorationAtEnd.color, Palette.light.background);
   });
 
@@ -177,9 +210,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    Offset probeOffset() =>
-        tester.getTopLeft(find.byKey(const Key('probe'))) -
-        tester.getTopLeft(find.byType(FSurface));
+    Offset probeOffset() => tester.getTopLeft(find.byKey(const Key('probe'))) - tester.getTopLeft(find.byType(FSurface));
 
     // В светлой теме обводки нет — ребёнок прижат к углу поверхности.
     expect(probeOffset(), Offset.zero);
@@ -221,8 +252,7 @@ void main() {
     await pumpApp(tester);
 
     final github = find.text('GitHub');
-    Transform buttonTransform() =>
-        tester.widget<Transform>(find.ancestor(of: github, matching: find.byType(Transform)).first);
+    Transform buttonTransform() => tester.widget<Transform>(find.ancestor(of: github, matching: find.byType(Transform)).first);
 
     final gesture = await tester.startGesture(tester.getCenter(github));
     await tester.pump(); // холостой кадр: тикер падения стартует с elapsed = 0

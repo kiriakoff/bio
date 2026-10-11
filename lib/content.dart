@@ -50,6 +50,7 @@ class Strings {
   final String nowTitle;
   final List<(String, String, String)> now;
   final String email;
+  final String narrowWindow;
   final String Function(int age) ageLabelBuilder;
 
   const Strings({
@@ -67,6 +68,7 @@ class Strings {
     required this.nowTitle,
     required this.now,
     required this.email,
+    required this.narrowWindow,
     required this.ageLabelBuilder,
   });
 
@@ -108,6 +110,7 @@ class Strings {
       ),
     ],
     email: 'kiriakov.f.m@gmail.com',
+    narrowWindow: 'Сделай пошире',
     ageLabelBuilder: _ageLabelRu,
   );
 
@@ -145,6 +148,7 @@ class Strings {
       ),
     ],
     email: 'kiriakov.f.m@gmail.com',
+    narrowWindow: 'Make it wider',
     ageLabelBuilder: _ageLabelEn,
   );
 }
