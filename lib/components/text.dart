@@ -4,9 +4,9 @@ import 'package:bio/components/text_style.dart';
 import 'package:flutter/widgets.dart';
 
 /// Текст с побуквенным переходом при смене языка: каждый символ в свой
-/// случайный момент внутри общей анимации мигает «помехами» и фиксируется
-/// в новом значении. Все FText на странице переключаются одновременно,
-/// но каждый — в своём случайном порядке.
+/// случайный момент внутри общей анимации переключается со старого значения
+/// на новое. Все FText на странице переключаются одновременно, но каждый —
+/// в своём случайном порядке.
 class FText extends StatefulWidget {
   final String data;
   final TextAlign? textAlign;
@@ -28,18 +28,8 @@ class FText extends StatefulWidget {
 }
 
 class _FTextState extends State<FText> with SingleTickerProviderStateMixin {
-  /// Пул символов для «помех»: латиница, кириллица, цифры и пара знаков.
-  static const String _noiseChars =
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
-      'АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ'
-      'абвгдежзийклмнопрстуфхцчшщъыьэюя'
-      '0123456789#%&@\$';
-
   /// Длительность перехода.
   static const Duration _duration = Duration(milliseconds: 800);
-
-  /// Какую долю длительности символ мигает помехами, прежде чем зафиксироваться.
-  static const double _flickerWindow = 0.35;
 
   late final AnimationController _controller;
   final Random _random = Random();
@@ -47,8 +37,9 @@ class _FTextState extends State<FText> with SingleTickerProviderStateMixin {
   String _display = '';
   String _from = '';
   String _to = '';
-  List<double> _starts = const [];
-  List<double> _ends = const [];
+
+  /// Случайный момент переключения 0..1 для каждого символа.
+  List<double> _switchAt = const [];
 
   @override
   void initState() {
@@ -75,19 +66,12 @@ class _FTextState extends State<FText> with SingleTickerProviderStateMixin {
 
   void _scramble({required String from, required String to}) {
     // Стартуем из текущего отображаемого состояния: если дёрнуть переключатель
-    // посреди анимации, переход продолжится из «абракадабры», а не начнётся заново.
+    // посреди анимации, переход продолжится с текущей смеси букв, а не
+    // начнётся заново.
     final count = max(from.length, to.length);
-    final starts = List<double>.filled(count, 0);
-    final ends = List<double>.filled(count, 0);
-    for (var i = 0; i < count; i++) {
-      final start = _random.nextDouble() * (1 - _flickerWindow);
-      starts[i] = start;
-      ends[i] = start + _flickerWindow;
-    }
+    _switchAt = List<double>.generate(count, (_) => _random.nextDouble());
     _from = from;
     _to = to;
-    _starts = starts;
-    _ends = ends;
     _controller.forward(from: 0);
   }
 
@@ -103,13 +87,11 @@ class _FTextState extends State<FText> with SingleTickerProviderStateMixin {
 
   String _compose(double t) {
     final buffer = StringBuffer();
-    for (var i = 0; i < _starts.length; i++) {
-      if (t >= _ends[i]) {
+    for (var i = 0; i < _switchAt.length; i++) {
+      if (t >= _switchAt[i]) {
         if (i < _to.length) buffer.writeCharCode(_to.codeUnitAt(i));
-      } else if (t <= _starts[i]) {
-        if (i < _from.length) buffer.writeCharCode(_from.codeUnitAt(i));
       } else {
-        buffer.write(_noiseChars[_random.nextInt(_noiseChars.length)]);
+        if (i < _from.length) buffer.writeCharCode(_from.codeUnitAt(i));
       }
     }
     return buffer.toString();

@@ -18,7 +18,7 @@ class HeadSection extends StatelessWidget {
     launchUrl(Uri.parse(Content.githubUrl), mode: LaunchMode.externalApplication);
   }
 
-  void openMail(PointerDownEvent event) {
+  void openTg(PointerDownEvent event) {
     launchUrl(Uri.parse(Content.contactTg), mode: LaunchMode.externalApplication);
   }
 
@@ -63,9 +63,9 @@ class HeadSection extends StatelessWidget {
               onPressed: openGithub,
             ),
             FButton(
-              label: strings.writeMeButton,
-              icon: 'assets/icons/mail.svg',
-              onPressed: openMail,
+              label: strings.tgButton,
+              icon: 'assets/icons/telegram.svg',
+              onPressed: openTg,
             ),
           ],
         ),

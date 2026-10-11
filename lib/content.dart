@@ -41,7 +41,7 @@ class Strings {
   final String company;
   final String city;
   final String githubButton;
-  final String writeMeButton;
+  final String tgButton;
   final String aboutTitle;
   final String aboutLead;
   final List<String> aboutItems;
@@ -58,7 +58,7 @@ class Strings {
     required this.company,
     required this.city,
     required this.githubButton,
-    required this.writeMeButton,
+    required this.tgButton,
     required this.aboutTitle,
     required this.aboutLead,
     required this.aboutItems,
@@ -80,7 +80,7 @@ class Strings {
     company: 'Т-Банк (ТЦР)',
     city: 'Самара',
     githubButton: 'GitHub',
-    writeMeButton: 'Написать мне',
+    tgButton: 'Телеграм',
     aboutTitle: 'О себе',
     aboutLead: 'Технарь и душнила.',
     aboutItems: [
@@ -117,7 +117,7 @@ class Strings {
     company: 'T-Bank (TCR)',
     city: 'Samara',
     githubButton: 'GitHub',
-    writeMeButton: 'Get in touch',
+    tgButton: 'Telegram',
     aboutTitle: 'About',
     aboutLead: 'A techie and a pedant.',
     aboutItems: [
