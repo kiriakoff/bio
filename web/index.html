@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Fedor Kiriakov bio">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="bio">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png" />
+
+  <title>Фёдор Кирьяков</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+
+<body style="background: #fafafa;">
+  <div id="loading-screen" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #fafafa;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    opacity: 1;
+    transition: opacity 0.5s ease-out;
+    z-index: 1000;
+  ">
+    <div style="
+      width: clamp(80px, 10vh, 200px);
+      height: clamp(80px, 10vh, 200px);
+    ">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+        <circle fill="#DCDCDC" stroke="#DCDCDC" stroke-width="15" r="15" cx="40" cy="65">
+          <animate attributeName="cy" calcMode="spline" dur="2" values="65;135;65;" keySplines=".5 0 .5 1;.5 0 .5 1"
+            repeatCount="indefinite" begin="-.4"></animate>
+        </circle>
+        <circle fill="#DCDCDC" stroke="#DCDCDC" stroke-width="15" r="15" cx="100" cy="65">
+          <animate attributeName="cy" calcMode="spline" dur="2" values="65;135;65;" keySplines=".5 0 .5 1;.5 0 .5 1"
+            repeatCount="indefinite" begin="-.2"></animate>
+        </circle>
+        <circle fill="#DCDCDC" stroke="#DCDCDC" stroke-width="15" r="15" cx="160" cy="65">
+          <animate attributeName="cy" calcMode="spline" dur="2" values="65;135;65;" keySplines=".5 0 .5 1;.5 0 .5 1"
+            repeatCount="indefinite" begin="0"></animate>
+        </circle>
+      </svg>
+    </div>
+  </div>
+
+  <script>
+    function hideLoadingScreen() {
+      const loadingScreen = document.getElementById('loading-screen')
+      if (loadingScreen) {
+        loadingScreen.style.opacity = '0'
+        setTimeout(() => {
+          loadingScreen.remove()
+        }, 500)
+      }
+    }
+    if (document.querySelector('flutter-view')) {
+      hideLoadingScreen()
+    } else {
+      const observer = new MutationObserver((mutations, observer) => {
+        for (const mutation of mutations) {
+          if (mutation.addedNodes) {
+            for (const node of mutation.addedNodes) {
+              if (node.nodeType === Node.ELEMENT_NODE &&
+                node.tagName === 'FLUTTER-VIEW') {
+                hideLoadingScreen()
+                observer.disconnect()
+                return;
+              }
+            }
+          }
+        }
+      });
+      observer.observe(document.body, {
+        childList: true,
+        subtree: false
+      });
+    }
+
+  </script>
+  <script>
+    (function () {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.style.background = '#161616';
+        var loadingScreen = document.getElementById('loading-screen');
+        if (loadingScreen) loadingScreen.style.background = '#161616';
+      }
+    })();
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+
+</html>
