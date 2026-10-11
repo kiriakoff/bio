@@ -1,6 +1,7 @@
 import 'package:bio/components/global.dart';
 import 'package:bio/components/section.dart';
 import 'package:bio/components/state_button.dart';
+import 'package:bio/components/surface.dart';
 import 'package:bio/content.dart';
 import 'package:bio/main.dart';
 import 'package:bio/state/app_state.dart';
@@ -136,8 +137,15 @@ void main() {
     appState.setDark(false, origin: const Offset(400, 100), maxDist: 4000);
     await tester.pump(); // первый кадр перехода: прогресс 0
 
+    // Берём именно бокс с заливкой: внутри поверхности теперь есть ещё
+    // форграунд-бокс с обводкой (он без цвета).
     final cardDecoration = find
-        .descendant(of: find.byType(FCard), matching: find.byType(DecoratedBox))
+        .descendant(
+          of: find.byType(FCard),
+          matching: find.byWidgetPredicate(
+            (widget) => widget is DecoratedBox && (widget.decoration as BoxDecoration).color != null,
+          ),
+        )
         .first;
 
     // Поверхность не должна щёлкаться в светлую на старте перехода.
@@ -153,6 +161,34 @@ void main() {
     final decorationAtEnd = tester.widget<DecoratedBox>(cardDecoration).decoration
         as BoxDecoration;
     expect(decorationAtEnd.color, Palette.light.background);
+  });
+
+  testWidgets('surface border does not shift content between themes', (tester) async {
+    final appState = AppState();
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: appState,
+        child: FSurface(
+          width: 60,
+          height: 30,
+          child: SizedBox(key: const Key('probe'), width: 10, height: 10),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    Offset probeOffset() =>
+        tester.getTopLeft(find.byKey(const Key('probe'))) -
+        tester.getTopLeft(find.byType(FSurface));
+
+    // В светлой теме обводки нет — ребёнок прижат к углу поверхности.
+    expect(probeOffset(), Offset.zero);
+
+    // В тёмной появляется обводка 0.9px, но она не должна влезать в раскладку:
+    // контент обязан остаться ровно на том же месте.
+    appState.setDark(true);
+    await tester.pumpAndSettle();
+    expect(probeOffset(), Offset.zero);
   });
 
   testWidgets('wheel scroll glues animations together', (tester) async {

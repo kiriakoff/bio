@@ -112,6 +112,20 @@ class _FSurfaceState extends State<FSurface> {
     final borderAlpha = lerpDouble(palette.borderRestAlpha, palette.borderPressAlpha, pressK)!;
     final borderWidth = lerpDouble(palette.borderRestWidth, palette.borderPressWidth, pressK)!;
 
+    // Обводка — не в BoxDecoration: Container прибавляет её размеры к padding
+    // (_paddingIncludingDecoration), из-за чего в тёмной теме контент
+    // получают отступ ~1px, кнопки толстеют и разъезжаются при анимации темы.
+    // Рисуем штрих поверх бокса снаружи (StrokeAlign.outside) — на раскладку
+    // он не влияет в принципе.
+    final border = borderWidth > 0
+        ? Border.all(
+            color: palette.borderColor.withValues(alpha: borderAlpha),
+            width: borderWidth,
+            strokeAlign: BorderSide.strokeAlignOutside,
+          )
+        : null;
+    final borderRadius = BorderRadius.circular(widget.round ? 1000 : Global.radius);
+
     final surface = Container(
       alignment: widget.alignment,
       padding: widget.padding,
@@ -124,15 +138,11 @@ class _FSurfaceState extends State<FSurface> {
       decoration: BoxDecoration(
         color: widget.color ??
             Color.lerp(palette.background, palette.backgroundHilight, widget.hilight),
-        borderRadius: BorderRadius.circular(widget.round ? 1000 : Global.radius),
-        border: borderWidth > 0
-            ? Border.all(
-                color: palette.borderColor.withValues(alpha: borderAlpha),
-                width: borderWidth,
-              )
-            : null,
+        borderRadius: borderRadius,
         boxShadow: [shadow],
       ),
+      foregroundDecoration:
+          border == null ? null : BoxDecoration(border: border, borderRadius: borderRadius),
       child: widget.child,
     );
 
