@@ -29,22 +29,45 @@ void main() {
     expect(find.text('Стек'), findsOneWidget);
     expect(find.text('Сейчас'), findsOneWidget);
     expect(find.text('GitHub'), findsOneWidget);
-    expect(find.text('RU'), findsOneWidget);
-    expect(find.text('EN'), findsOneWidget);
+    // 'RU'/'EN' встречаются и в тумблерах, и в стеке языков — ищем именно тумблер.
+    expect(find.widgetWithText(FStateButton, 'RU'), findsOneWidget);
+    expect(find.widgetWithText(FStateButton, 'EN'), findsOneWidget);
   });
 
   testWidgets('language toggle switches content to EN', (tester) async {
     final appState = await pumpApp(tester);
 
-    await tester.tap(find.text('EN'));
+    await tester.tap(find.widgetWithText(FStateButton, 'EN'));
     await tester.pumpAndSettle();
 
     expect(appState.language, AppLanguage.en);
-    expect(find.text('Fedor Kiryakov'), findsOneWidget);
-    expect(find.text('About me'), findsOneWidget);
+    expect(find.text('Fedor Kiriakov'), findsOneWidget);
+    expect(find.text('About'), findsOneWidget);
     expect(find.text('Stack'), findsOneWidget);
-    expect(find.text('Currently'), findsOneWidget);
+    expect(find.text('Now'), findsOneWidget);
     expect(find.text('Фёдор Кирьяков'), findsNothing);
+  });
+
+  testWidgets('language switch scrambles text letter by letter', (tester) async {
+    await pumpApp(tester);
+
+    await tester.tap(find.widgetWithText(FStateButton, 'EN'));
+    await tester.pump(); // холостой кадр: анимация стартует с elapsed = 0
+    // 80 мс из 800: буквенное окно мерцания начинается с 35% таймлайна,
+    // поэтому зафиксироваться в EN ещё ничего не могло, а мерцать — уже да.
+    await tester.pump(const Duration(milliseconds: 80));
+
+    // Финальный EN-текст ещё не появился...
+    expect(find.text('Fedor Kiriakov'), findsNothing);
+    // ...а старый уже начал рассыпаться в помехи (вероятность, что ни одна
+    // буква имени не мерцает к этому моменту, пренебрежимо мала).
+    expect(find.text('Фёдор Кирьяков'), findsNothing);
+
+    await tester.pumpAndSettle();
+
+    // К концу анимации весь текст зафиксировался в EN.
+    expect(find.text('Fedor Kiriakov'), findsOneWidget);
+    expect(find.text('About'), findsOneWidget);
   });
 
   testWidgets('theme toggle switches palette', (tester) async {
