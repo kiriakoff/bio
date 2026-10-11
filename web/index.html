@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 
 <head>
   <!--
@@ -46,75 +46,382 @@
     justify-content: center;
     align-items: center;
     flex-direction: column;
+    gap: 14px;
     opacity: 1;
     transition: opacity 0.5s ease-out;
     z-index: 1000;
   ">
-    <div style="
-      width: clamp(80px, 10vh, 200px);
-      height: clamp(80px, 10vh, 200px);
+    <div id="loading-track" style="
+      width: min(260px, 70vw);
+      height: 4px;
+      border-radius: 2px;
+      background: #dcdcdc;
+      overflow: hidden;
     ">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-        <circle fill="#DCDCDC" stroke="#DCDCDC" stroke-width="15" r="15" cx="40" cy="65">
-          <animate attributeName="cy" calcMode="spline" dur="2" values="65;135;65;" keySplines=".5 0 .5 1;.5 0 .5 1"
-            repeatCount="indefinite" begin="-.4"></animate>
-        </circle>
-        <circle fill="#DCDCDC" stroke="#DCDCDC" stroke-width="15" r="15" cx="100" cy="65">
-          <animate attributeName="cy" calcMode="spline" dur="2" values="65;135;65;" keySplines=".5 0 .5 1;.5 0 .5 1"
-            repeatCount="indefinite" begin="-.2"></animate>
-        </circle>
-        <circle fill="#DCDCDC" stroke="#DCDCDC" stroke-width="15" r="15" cx="160" cy="65">
-          <animate attributeName="cy" calcMode="spline" dur="2" values="65;135;65;" keySplines=".5 0 .5 1;.5 0 .5 1"
-            repeatCount="indefinite" begin="0"></animate>
-        </circle>
-      </svg>
+      <div id="loading-bar" style="
+        width: 100%;
+        height: 100%;
+        border-radius: 2px;
+        background: #161616;
+        transform: scaleX(0);
+        transform-origin: left center;
+      "></div>
     </div>
+    <div id="loading-pct" style="
+      font-family: ui-monospace, 'Cascadia Mono', 'Source Code Pro', Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: #8a8a8a;
+    ">0%</div>
   </div>
 
   <script>
-    function hideLoadingScreen() {
-      const loadingScreen = document.getElementById('loading-screen')
-      if (loadingScreen) {
-        loadingScreen.style.opacity = '0'
-        setTimeout(() => {
-          loadingScreen.remove()
-        }, 500)
+    // Тема прелоадера — в цвет приложения, до старта движка.
+    (function () {
+      var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var bg = dark ? '#161616' : '#fafafa';
+      document.body.style.background = bg;
+      var screen = document.getElementById('loading-screen');
+      if (screen) screen.style.background = bg;
+      var track = document.getElementById('loading-track');
+      if (track) track.style.background = dark ? '#2e2e2e' : '#dcdcdc';
+      var bar = document.getElementById('loading-bar');
+      if (bar) bar.style.background = dark ? '#fafafa' : '#161616';
+    })();
+  </script>
+
+  <!-- Сюда деплой вкомпилирует карту размеров файлов билда (распакованные байты). -->
+  <script>/*__BIO_SIZES__*/</script>
+
+  <script>
+    // Реальный прогресс загрузки.
+    //
+    // main.dart.js мы стримим сами (см. bootstrap ниже) и считаем его байты
+    // честно. Остальные тяжёлые ресурсы — canvaskit.wasm, шрифты, манифесты —
+    // качает движок через fetch/XHR, поэтому подменяем их тонкой обёрткой:
+    // считаем полученные байты и соотносим с размерами файлов билда.
+    window.__bioProgress = (function () {
+      var bar = document.getElementById('loading-bar');
+      var pct = document.getElementById('loading-pct');
+
+      // Доли фаз по реальным объёмам в сжатом виде: main.dart.js ~0.5 МБ,
+      // canvaskit.wasm ~2 МБ, шрифты и ассеты ~0.5 МБ.
+      var SHARE_MAIN = 0.15;
+      var SHARE_RENDER = 0.70;
+      var SHARE_BOOT = 0.15;
+
+      var sizes = window.__BIO_SIZES__ || {};
+      var mainExpected = sizes['main.dart.js'] || 1600000;
+
+      var mainReceived = 0;
+      var buckets = {
+        render: { received: 0, total: 0 },
+        boot: { received: 0, total: 0 }
+      };
+      var seen = new Map();
+
+      var target = 0;
+      var displayed = 0;
+      var finished = false;
+      var dismissed = false;
+
+      function normalize(url) {
+        return String(url).split('?')[0].toLowerCase();
       }
+
+      function sameOrigin(url) {
+        try {
+          return new URL(url, location.href).origin === location.origin;
+        } catch (_) {
+          return false;
+        }
+      }
+
+      function trackable(url) {
+        if (!sameOrigin(url)) return false;
+        var u = normalize(url);
+        if (u.indexOf('main.dart.js') !== -1) return false; // считаем отдельно
+        return /\.(wasm|js|json|bin|ttf|otf|png|svg)$/.test(u);
+      }
+
+      function bucketFor(u) {
+        if (u.endsWith('.wasm') || u.indexOf('canvaskit') !== -1) return buckets.render;
+        return buckets.boot;
+      }
+
+      function knownTotal(u) {
+        for (var key in sizes) {
+          if (u.endsWith(key.toLowerCase())) return sizes[key];
+        }
+        return 0;
+      }
+
+      function fallbackTotal(u) {
+        if (u.endsWith('.wasm')) return 5500000;
+        if (u.endsWith('.ttf') || u.endsWith('.otf')) return 600000;
+        if (u.endsWith('.png')) return 200000;
+        return 16384;
+      }
+
+      function observe(url, headerTotal) {
+        var u = normalize(url);
+        var bucket = bucketFor(u);
+        var total = knownTotal(u);
+        if (!total) total = headerTotal > 0 ? headerTotal : fallbackTotal(u);
+        var entry = { received: 0, total: total, bucket: bucket };
+        seen.set(u, entry);
+        bucket.total += total;
+        recompute();
+        return entry;
+      }
+
+      function note(url, absolute) {
+        if (!trackable(url)) return;
+        var u = normalize(url);
+        var entry = seen.get(u) || observe(url, 0);
+        var value = Math.min(entry.total, absolute);
+        if (value <= entry.received) return;
+        entry.bucket.received += value - entry.received;
+        entry.received = value;
+        recompute();
+      }
+
+      function recompute() {
+        var mainFrac = Math.min(1, mainReceived / mainExpected);
+        var renderFrac = buckets.render.total ? Math.min(1, buckets.render.received / buckets.render.total) : 0;
+        var bootFrac = buckets.boot.total ? Math.min(1, buckets.boot.received / buckets.boot.total) : 0;
+        var value = SHARE_MAIN * mainFrac + SHARE_RENDER * renderFrac + SHARE_BOOT * bootFrac;
+        if (value > target) target = value; // бюджет может вырасти — бар не откатывается
+      }
+
+      // Плавная отрисовка.
+      (function tick() {
+        if (dismissed) return;
+        displayed += (target - displayed) * 0.12;
+        if (target - displayed < 0.0015) displayed = target;
+        if (bar) bar.style.transform = 'scaleX(' + displayed.toFixed(4) + ')';
+        if (pct) pct.textContent = Math.round(displayed * 100) + '%';
+        requestAnimationFrame(tick);
+      })();
+
+      return {
+        mainExpected: function (bytes) {
+          if (bytes > mainExpected) mainExpected = bytes;
+          recompute();
+        },
+        mainProgress: function (bytes) {
+          mainReceived = Math.max(mainReceived, bytes);
+          recompute();
+        },
+        note: note,
+        trackable: trackable,
+        finish: function () {
+          if (finished) return;
+          finished = true;
+          target = 1;
+        },
+        dismiss: function () {
+          if (dismissed) return;
+          dismissed = true;
+          finished = true;
+          target = 1;
+          displayed = Math.max(displayed, 0.97); // бар дотягивает до конца
+          setTimeout(function () {
+            var screen = document.getElementById('loading-screen');
+            if (screen) {
+              screen.style.opacity = '0';
+              setTimeout(function () { screen.remove(); }, 500);
+            }
+          }, 350);
+        }
+      };
+    })();
+  </script>
+
+  <script>
+    // Учёт байтов ресурсов движка: тонкие обёртки над fetch и XHR.
+    (function () {
+      var progress = window.__bioProgress;
+
+      var originalFetch = window.fetch;
+      if (originalFetch) {
+        window.fetch = function (input, init) {
+          var promise = originalFetch.apply(this, arguments);
+          try {
+            var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+            if (!progress.trackable(url)) return promise;
+            return promise.then(function (response) {
+              try { return tap(url, response); } catch (_) { return response; }
+            });
+          } catch (_) {
+            return promise;
+          }
+        };
+      }
+
+      // Траншим поток ответа: потребителю уходит одна ветка, мы читаем вторую.
+      function tap(url, response) {
+        if (!response.ok || !response.body || !response.body.getReader || !response.body.tee) return response;
+        var branchForApp, branchForCounter;
+        try {
+          var branches = response.body.tee();
+          branchForApp = branches[0];
+          branchForCounter = branches[1];
+        } catch (_) {
+          return response;
+        }
+        progress.note(url, 0); // создаёт запись с размером из карты билда
+        var received = 0;
+        var reader = branchForCounter.getReader();
+        (function read() {
+          reader.read().then(function (chunk) {
+            if (chunk.done) return;
+            received += chunk.value.byteLength;
+            progress.note(url, received);
+            read();
+          }).catch(function () { });
+        })();
+        return new Response(branchForApp, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers
+        });
+      }
+
+      var rawOpen = XMLHttpRequest.prototype.open;
+      XMLHttpRequest.prototype.open = function (method, url) {
+        this.__bioUrl = String(url);
+        return rawOpen.apply(this, arguments);
+      };
+      var rawSend = XMLHttpRequest.prototype.send;
+      XMLHttpRequest.prototype.send = function () {
+        var xhr = this;
+        xhr.addEventListener('progress', function (event) {
+          try { progress.note(xhr.__bioUrl, event.loaded); } catch (_) { }
+        });
+        return rawSend.apply(this, arguments);
+      };
+    })();
+  </script>
+
+  <script>
+    // Убираем сервис-воркер от старого загрузчика: он устарел, кэширует
+    // stale-бандлы и мешает честному прогрессу. Текущая загрузка, если им
+    // контролируется, отдастся мгновенно из кэша — бар просто долетит быстро.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        regs.forEach(function (reg) { reg.unregister(); });
+      }).catch(function () { });
     }
-    if (document.querySelector('flutter-view')) {
-      hideLoadingScreen()
-    } else {
-      const observer = new MutationObserver((mutations, observer) => {
-        for (const mutation of mutations) {
-          if (mutation.addedNodes) {
-            for (const node of mutation.addedNodes) {
-              if (node.nodeType === Node.ELEMENT_NODE &&
-                node.tagName === 'FLUTTER-VIEW') {
-                hideLoadingScreen()
-                observer.disconnect()
-                return;
-              }
+  </script>
+
+  <script>
+    {{flutter_js}}
+  </script>
+  <script>
+    {{flutter_build_config}}
+  </script>
+
+  <script>
+    // Кастомный bootstrap: стримим main.dart.js с честным прогрессом и
+    // отдаём движку через blob-URL (загрузчик Flutter их поддерживает),
+    // canvaskit забираем локально, чтобы шёл через наш nginx со сжатием.
+    (function () {
+      var progress = window.__bioProgress;
+      var allowBlob = !new URLSearchParams(location.search).has('noblob');
+      var engineStarted = false;
+
+      var builds = (_flutter.buildConfig && _flutter.buildConfig.builds) || [];
+      var jsBuild = null;
+      for (var i = 0; i < builds.length; i++) {
+        if (builds[i] && builds[i].compileTarget === 'dart2js') { jsBuild = builds[i]; break; }
+      }
+
+      function boot() {
+        _flutter.loader.load({
+          config: { canvasKitBaseUrl: 'canvaskit' },
+          onEntrypointLoaded: function (engineInitializer) {
+            engineStarted = true;
+            engineInitializer.initializeEngine({ canvasKitBaseUrl: 'canvaskit' }).then(function (app) {
+              return app.runApp();
+            });
+          }
+        });
+        // Страховка только на фазу «blob-скрипт исполнился»: сюда качается
+        // уже готовый main.dart.js и исполняется мгновенно. Дальше движок
+        // качает canvaskit сколько угодно долго — это не повод для перезагрузки.
+        setTimeout(function () {
+          if (!engineStarted && allowBlob) {
+            location.replace(location.pathname + (location.search ? location.search + '&' : '?') + 'noblob=1');
+          }
+        }, 10000);
+      }
+
+      var expected = (window.__BIO_SIZES__ && window.__BIO_SIZES__['main.dart.js']) || 1600000;
+      progress.mainExpected(expected);
+
+      if (!allowBlob || !jsBuild) {
+        progress.mainProgress(expected);
+        boot();
+        return;
+      }
+
+      fetch('main.dart.js').then(function (response) {
+        if (!response.ok || !response.body || !response.body.getReader) throw new Error('no streaming');
+        var reader = response.body.getReader();
+        var chunks = [];
+        var received = 0;
+        function pump() {
+          return reader.read().then(function (chunk) {
+            if (chunk.done) {
+              jsBuild.mainJsPath = URL.createObjectURL(new Blob(chunks, { type: 'text/javascript' }));
+              progress.mainProgress(received);
+              boot();
+              return;
+            }
+            chunks.push(chunk.value);
+            received += chunk.value.byteLength;
+            progress.mainProgress(received);
+            return pump();
+          });
+        }
+        return pump();
+      }).catch(function () {
+        // Стриминг недоступен — грузимся как обычно, бар идёт по фазам.
+        progress.mainProgress(expected);
+        boot();
+      });
+    })();
+  </script>
+
+  <script>
+    // Прячем прелоадер по первому кадру движка; на случай, если событие
+    // не придёт, — страховка по появлению flutter-view.
+    (function () {
+      var progress = window.__bioProgress;
+      var dismissed = false;
+      function dismiss() {
+        if (dismissed) return;
+        dismissed = true;
+        progress.dismiss();
+      }
+      window.addEventListener('flutter-first-frame', dismiss);
+      var observer = new MutationObserver(function (mutations) {
+        for (var i = 0; i < mutations.length; i++) {
+          var nodes = mutations[i].addedNodes || [];
+          for (var j = 0; j < nodes.length; j++) {
+            var node = nodes[j];
+            if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'FLUTTER-VIEW') {
+              observer.disconnect();
+              // Даём движку шанс нарисовать первый кадр, но не висим вечно.
+              setTimeout(dismiss, 4000);
+              return;
             }
           }
         }
       });
-      observer.observe(document.body, {
-        childList: true,
-        subtree: false
-      });
-    }
-
-  </script>
-  <script>
-    (function () {
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.body.style.background = '#161616';
-        var loadingScreen = document.getElementById('loading-screen');
-        if (loadingScreen) loadingScreen.style.background = '#161616';
-      }
+      observer.observe(document.body, { childList: true, subtree: false });
     })();
   </script>
-  <script src="flutter_bootstrap.js" async></script>
 </body>
 
 </html>
