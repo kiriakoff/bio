@@ -19,6 +19,22 @@ abstract final class Content {
   static int get currentYear => DateTime.now().year;
 }
 
+String _ageLabelRu(int n) {
+  final mod10 = n % 10;
+  final mod100 = n % 100;
+  final String word;
+  if (mod10 == 1 && mod100 != 11) {
+    word = 'год';
+  } else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+    word = 'года';
+  } else {
+    word = 'лет';
+  }
+  return '$n $word';
+}
+
+String _ageLabelEn(int n) => n == 1 ? '1 year old' : '$n years old';
+
 class Strings {
   final String name;
   final String role;
@@ -34,6 +50,7 @@ class Strings {
   final String nowTitle;
   final List<(String, String, String)> now;
   final String email;
+  final String Function(int age) ageLabelBuilder;
 
   const Strings({
     required this.name,
@@ -50,22 +67,10 @@ class Strings {
     required this.nowTitle,
     required this.now,
     required this.email,
+    required this.ageLabelBuilder,
   });
 
-  String get ageLabel {
-    final n = Content.age;
-    final mod10 = n % 10;
-    final mod100 = n % 100;
-    final String word;
-    if (mod10 == 1 && mod100 != 11) {
-      word = 'год';
-    } else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
-      word = 'года';
-    } else {
-      word = 'лет';
-    }
-    return '$n $word';
-  }
+  String get ageLabel => ageLabelBuilder(Content.age);
 
   String copyright(int year) => '© $year $name';
 
@@ -86,7 +91,7 @@ class Strings {
     stackTitle: 'Стек',
     stack: [
       ('Языки', ['RU', 'EN', 'Rust', 'Python', 'C#']),
-      ('Инфраструктура', ['Linux', 'Docker', 'ANsible', 'Nginx', 'Git (верчу ремоуты как твою мамку)']),
+      ('Инфраструктура', ['Linux', 'Docker', 'Ansible', 'Nginx', 'Git (верчу ремоуты как твою мамку)']),
       ('К слову', ['Arch Linux']),
     ],
     nowTitle: 'Сейчас',
@@ -99,11 +104,47 @@ class Strings {
       (
         'с 2025',
         'Аспирантура в СамГТУ',
-        '«Системный анализ и математическая статистика»»',
+        '«Системный анализ и математическая статистика»',
       ),
     ],
     email: 'kiriakov.f.m@gmail.com',
+    ageLabelBuilder: _ageLabelRu,
   );
 
-  // static const Strings en = Strings(...);
+  static const Strings en = Strings(
+    name: 'Fedor Kiriakov',
+    role: 'SRE / SDE',
+    company: 'T-Bank (TCR)',
+    city: 'Samara',
+    githubButton: 'GitHub',
+    writeMeButton: 'Get in touch',
+    aboutTitle: 'About',
+    aboutLead: 'A techie and a pedant.',
+    aboutItems: [
+      'Someday I will write here about how I automate everything automatable. And whatever is not automatable, I make automatable — and then automate it.',
+      'I will also write about the incredible Nvim config I have come up with (well, once I actually come up with it). So far the best I can show off is my Kitty config.',
+      'And I will throw in a photo of my gaming rig, just to win over the target audience completely.',
+    ],
+    stackTitle: 'Stack',
+    stack: [
+      ('Languages', ['RU', 'EN', 'Rust', 'Python', 'C#']),
+      ('Infrastructure', ['Linux', 'Docker', 'Ansible', 'Nginx', 'Git (I twist remotes like your mom)']),
+      ('btw', ['Arch Linux']),
+    ],
+    nowTitle: 'Now',
+    now: [
+      (
+        'since 2023',
+        'SRE at T-Bank (TCR)',
+        'Internal cloud data storage system: automation, integrations and reliability',
+      ),
+      (
+        'since 2025',
+        'PhD program at SamSTU',
+        '“System analysis and mathematical statistics”',
+      ),
+    ],
+    email: 'kiriakov.f.m@gmail.com',
+    ageLabelBuilder: _ageLabelEn,
+  );
 }
