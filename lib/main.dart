@@ -41,8 +41,8 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
     Global.apply(app.palette);
-    // Слишком узкое окно: страницу не строим вовсе (всё равно пережата),
-    // вместо неё — плашка с просьбой расширить окно.
+    // Window too narrow: do not build the page at all (it would be squashed
+    // beyond recognition anyway) — show the "widen the window" plate instead.
     final tooNarrow = MediaQuery.sizeOf(context).width < NarrowOverlay.minWidth;
     return Directionality(
       textDirection: TextDirection.ltr,

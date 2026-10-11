@@ -4,15 +4,15 @@ import 'package:bio/state/app_state.dart';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 
-/// Плашка «слишком узко»: когда окно сжато по горизонтали сильнее
-/// разумного, полностью закрывает его непрозрачным фоном (чтобы пережатый
-/// рендер не просвечивал) и показывает вертикальное сообщение с просьбой
-/// расширить окно. Появление и исчезновение — плавное, через прозрачность.
+/// The "too narrow" plate: when the window is squeezed horizontally beyond
+/// reason, it covers the window with a fully opaque backdrop (so the
+/// squeezed render does not show through) and displays a vertical message
+/// asking to widen the window. Appears and disappears smoothly, via opacity.
 class NarrowOverlay extends StatelessWidget {
-  /// Ниже этой ширины окно считается слишком узким.
+  /// Below this width the window counts as too narrow.
   static const double minWidth = 300;
 
-  /// Показывать ли плашку (окно слишком узкое для страницы).
+  /// Whether to show the plate (the window is too narrow for the page).
   final bool visible;
 
   const NarrowOverlay({super.key, required this.visible});
@@ -21,6 +21,7 @@ class NarrowOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final strings = context.watch<AppState>().strings;
     return IgnorePointer(
+      // Hidden plate must not swallow clicks meant for the page beneath.
       ignoring: !visible,
       child: AnimatedOpacity(
         opacity: visible ? 1 : 0,
@@ -28,11 +29,12 @@ class NarrowOverlay extends StatelessWidget {
         child: ColoredBox(
           color: Global.backgroundColor,
           child: Center(
-            // scaleDown: на низких окнах сообщение ужмётся, а не обрежется.
+            // scaleDown: on short windows the message shrinks instead of
+            // getting clipped.
             child: FittedBox(
               fit: BoxFit.scaleDown,
               child: RotatedBox(
-                // Текст читается сверху вниз при наклоне головы вправо.
+                // The text reads top-to-bottom with the head tilted right.
                 quarterTurns: 1,
                 child: FText(strings.narrowWindow, heading: 2),
               ),

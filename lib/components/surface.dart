@@ -33,14 +33,14 @@ class FSurface extends StatefulWidget {
   final Widget? child;
   final bool clip;
 
-  /// Фиксированный цвет заливки вместо темы-лерпа (например, бейджи).
+  /// Fixed fill color instead of the theme lerp (e.g. badges).
   final Color? color;
 
-  /// Приподнимает поверхность в положении покоя, как у кнопок: сдвиг вверх
-  /// в светлой теме и «доводка» вниз при нажатии и смене темы. По умолчанию
-  /// выключено: статичным поверхностям (бейджи, карточки, фото) движение
-  /// ни к чему — без него они не съезжают относительно соседей и не прыгают
-  /// при анимации темы.
+  /// Raises the surface in its resting state, the way buttons behave: shifted
+  /// up in the light theme, settling back down when pressed and when the theme
+  /// animates. Off by default: static surfaces (badges, cards, the photo) do
+  /// not need the motion — without it they stay aligned with their neighbors
+  /// and do not jump during the theme transition.
   final bool lift;
 
   final double elevation;
@@ -58,8 +58,13 @@ class _FSurfaceState extends State<FSurface> {
   int? _cachedTransitionId;
   double _delay = 0;
 
-  /// Прогресс 0..1 к целевой теме с каскадной задержкой поверхности.
-  /// Валиден только во время перехода.
+  /// Theme transition progress 0..1 toward the target, with a cascade delay
+  /// specific to this surface. Only meaningful while a transition is running.
+  ///
+  /// The delay makes surfaces flip one after another instead of all at once:
+  /// the farther a surface is from the wave origin (the toggle that was
+  /// pressed), the later it switches, plus a bit of randomness so the
+  /// cascade does not look mechanical.
   double _staggeredProgress(AppState app) {
     if (_cachedTransitionId != app.transitionId) {
       var normDist = 0.5;
@@ -74,10 +79,12 @@ class _FSurfaceState extends State<FSurface> {
       _delay = (normDist * 0.7 + _random.nextDouble() * 0.15).clamp(0.0, 0.85);
       _cachedTransitionId = app.transitionId;
     }
+    // Shift the shared progress back by the delay, then renormalize so every
+    // surface still plays the full 0..1 range inside the global transition.
     return ((app.waveT - _delay * _staggerSpan) / (1 - _staggerSpan)).clamp(0.0, 1.0);
   }
 
-  /// Локальное абсолютное значение темы для этой поверхности.
+  /// This surface's own absolute theme value, independent of other surfaces.
   double _localThemeT(AppState app) {
     if (!app.themeTransitionActive) return app.themeT;
     return lerpDouble(app.transitionFromT, app.transitionToT, _staggeredProgress(app))!;
@@ -112,11 +119,12 @@ class _FSurfaceState extends State<FSurface> {
     final borderAlpha = lerpDouble(palette.borderRestAlpha, palette.borderPressAlpha, pressK)!;
     final borderWidth = lerpDouble(palette.borderRestWidth, palette.borderPressWidth, pressK)!;
 
-    // Обводка — не в BoxDecoration: Container прибавляет её размеры к padding
-    // (_paddingIncludingDecoration), из-за чего в тёмной теме контент
-    // получают отступ ~1px, кнопки толстеют и разъезжаются при анимации темы.
-    // Рисуем штрих поверх бокса снаружи (StrokeAlign.outside) — на раскладку
-    // он не влияет в принципе.
+    // The outline must not live in `decoration`: Container adds the border's
+    // dimensions to its padding (_paddingIncludingDecoration), so in the dark
+    // theme the content would get a ~1px inset, buttons would grow wider and
+    // drift apart during the theme animation. Instead the stroke is painted
+    // on top of the box, on its outside (StrokeAlign.outside) — it has no
+    // effect on layout at all.
     final border = borderWidth > 0
         ? Border.all(
             color: palette.borderColor.withValues(alpha: borderAlpha),

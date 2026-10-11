@@ -63,8 +63,9 @@ class _FButtonState extends State<FButton>
     hilightController.stop();
     animateExit();
     if (elevationController.isAnimating) {
-      // Кнопка ещё падает — даём ей упасть до конца. Отжимание начнётся
-      // из onPointerDown после завершения animatePress (pressed уже false).
+      // The button is still mid-fall — let it land before doing anything else.
+      // The release will be picked up from onPointerDown once animatePress
+      // completes (pressed is already false at that point).
       return;
     }
     animateRelease();

@@ -76,7 +76,7 @@
   </div>
 
   <script>
-    // Тема прелоадера — в цвет приложения, до старта движка.
+    // Loader theme — matched to the app colors before the engine starts.
     (function () {
       var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
       var bg = dark ? '#161616' : '#fafafa';
@@ -90,22 +90,23 @@
     })();
   </script>
 
-  <!-- Сюда деплой вкомпилирует карту размеров файлов билда (распакованные байты). -->
+  <!-- The deploy step compiles the build file size map (uncompressed bytes) here. -->
   <script>/*__BIO_SIZES__*/</script>
 
   <script>
-    // Реальный прогресс загрузки.
+    // Real loading progress.
     //
-    // main.dart.js мы стримим сами (см. bootstrap ниже) и считаем его байты
-    // честно. Остальные тяжёлые ресурсы — canvaskit.wasm, шрифты, манифесты —
-    // качает движок через fetch/XHR, поэтому подменяем их тонкой обёрткой:
-    // считаем полученные байты и соотносим с размерами файлов билда.
+    // We stream main.dart.js ourselves (see the bootstrap below) and count
+    // its bytes honestly. The other heavy resources — canvaskit.wasm, fonts,
+    // manifests — are downloaded by the engine via fetch/XHR, so we wrap
+    // them with thin shims: count the received bytes and match them against
+    // the build file size map.
     window.__bioProgress = (function () {
       var bar = document.getElementById('loading-bar');
       var pct = document.getElementById('loading-pct');
 
-      // Доли фаз по реальным объёмам в сжатом виде: main.dart.js ~0.5 МБ,
-      // canvaskit.wasm ~2 МБ, шрифты и ассеты ~0.5 МБ.
+      // Phase shares by real compressed sizes: main.dart.js ~0.5 MB,
+      // canvaskit.wasm ~2 MB, fonts and assets ~0.5 MB.
       var SHARE_MAIN = 0.15;
       var SHARE_RENDER = 0.70;
       var SHARE_BOOT = 0.15;
@@ -140,7 +141,7 @@
       function trackable(url) {
         if (!sameOrigin(url)) return false;
         var u = normalize(url);
-        if (u.indexOf('main.dart.js') !== -1) return false; // считаем отдельно
+        if (u.indexOf('main.dart.js') !== -1) return false; // counted separately
         return /\.(wasm|js|json|bin|ttf|otf|png|svg)$/.test(u);
       }
 
@@ -191,10 +192,10 @@
         var renderFrac = buckets.render.total ? Math.min(1, buckets.render.received / buckets.render.total) : 0;
         var bootFrac = buckets.boot.total ? Math.min(1, buckets.boot.received / buckets.boot.total) : 0;
         var value = SHARE_MAIN * mainFrac + SHARE_RENDER * renderFrac + SHARE_BOOT * bootFrac;
-        if (value > target) target = value; // бюджет может вырасти — бар не откатывается
+        if (value > target) target = value; // the budget may grow — the bar never moves back
       }
 
-      // Плавная отрисовка.
+      // Smooth rendering: ease the displayed value toward the target.
       (function tick() {
         if (dismissed) return;
         displayed += (target - displayed) * 0.12;
@@ -225,7 +226,7 @@
           dismissed = true;
           finished = true;
           target = 1;
-          displayed = Math.max(displayed, 0.97); // бар дотягивает до конца
+          displayed = Math.max(displayed, 0.97); // the bar rides out to the end
           setTimeout(function () {
             var screen = document.getElementById('loading-screen');
             if (screen) {
@@ -239,7 +240,7 @@
   </script>
 
   <script>
-    // Учёт байтов ресурсов движка: тонкие обёртки над fetch и XHR.
+    // Accounting for engine resource bytes: thin shims over fetch and XHR.
     (function () {
       var progress = window.__bioProgress;
 
@@ -259,7 +260,8 @@
         };
       }
 
-      // Траншим поток ответа: потребителю уходит одна ветка, мы читаем вторую.
+      // Tee the response stream: one branch goes to the consumer, we read
+      // the other one.
       function tap(url, response) {
         if (!response.ok || !response.body || !response.body.getReader || !response.body.tee) return response;
         var branchForApp, branchForCounter;
@@ -270,7 +272,7 @@
         } catch (_) {
           return response;
         }
-        progress.note(url, 0); // создаёт запись с размером из карты билда
+        progress.note(url, 0); // creates the entry with the size from the build map
         var received = 0;
         var reader = branchForCounter.getReader();
         (function read() {
@@ -305,9 +307,10 @@
   </script>
 
   <script>
-    // Убираем сервис-воркер от старого загрузчика: он устарел, кэширует
-    // stale-бандлы и мешает честному прогрессу. Текущая загрузка, если им
-    // контролируется, отдастся мгновенно из кэша — бар просто долетит быстро.
+    // Drop the service worker from the old loader: it is deprecated, caches
+    // stale bundles and gets in the way of honest progress. The current load,
+    // if already controlled by it, will be served from cache instantly —
+    // the bar will simply fly through.
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function (regs) {
         regs.forEach(function (reg) { reg.unregister(); });
@@ -323,9 +326,10 @@
   </script>
 
   <script>
-    // Кастомный bootstrap: стримим main.dart.js с честным прогрессом и
-    // отдаём движку через blob-URL (загрузчик Flutter их поддерживает),
-    // canvaskit забираем локально, чтобы шёл через наш nginx со сжатием.
+    // Custom bootstrap: stream main.dart.js with honest progress and hand it
+    // to the engine via a blob URL (the Flutter loader explicitly supports
+    // those); take canvaskit locally so it goes through our nginx with
+    // compression.
     (function () {
       var progress = window.__bioProgress;
       var allowBlob = !new URLSearchParams(location.search).has('noblob');
@@ -347,9 +351,10 @@
             });
           }
         });
-        // Страховка только на фазу «blob-скрипт исполнился»: сюда качается
-        // уже готовый main.dart.js и исполняется мгновенно. Дальше движок
-        // качает canvaskit сколько угодно долго — это не повод для перезагрузки.
+        // The safety net only covers the "blob script executed" phase: by this
+        // point main.dart.js is already downloaded and executes instantly.
+        // After that the engine takes as long as it needs to download
+        // canvaskit — that is no reason to reload.
         setTimeout(function () {
           if (!engineStarted && allowBlob) {
             location.replace(location.pathname + (location.search ? location.search + '&' : '?') + 'noblob=1');
@@ -387,7 +392,7 @@
         }
         return pump();
       }).catch(function () {
-        // Стриминг недоступен — грузимся как обычно, бар идёт по фазам.
+        // Streaming unavailable — load the usual way, the bar goes by phases.
         progress.mainProgress(expected);
         boot();
       });
@@ -395,8 +400,8 @@
   </script>
 
   <script>
-    // Прячем прелоадер по первому кадру движка; на случай, если событие
-    // не придёт, — страховка по появлению flutter-view.
+    // Hide the preloader on the engine's first frame; if the event never
+    // arrives, fall back to watching for the flutter-view element.
     (function () {
       var progress = window.__bioProgress;
       var dismissed = false;
@@ -413,7 +418,8 @@
             var node = nodes[j];
             if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'FLUTTER-VIEW') {
               observer.disconnect();
-              // Даём движку шанс нарисовать первый кадр, но не висим вечно.
+              // Give the engine a chance to paint the first frame, but do not
+              // hang around forever.
               setTimeout(dismiss, 4000);
               return;
             }

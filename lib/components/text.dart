@@ -3,10 +3,10 @@ import 'dart:math';
 import 'package:bio/components/text_style.dart';
 import 'package:flutter/widgets.dart';
 
-/// Текст с побуквенным переходом при смене языка: каждый символ в свой
-/// случайный момент внутри общей анимации переключается со старого значения
-/// на новое. Все FText на странице переключаются одновременно, но каждый —
-/// в своём случайном порядке.
+/// Text with a per-letter language-switch transition: every character flips
+/// from the old value to the new one at its own random moment within the
+/// shared animation. All the FText widgets on the page switch simultaneously,
+/// but each one in its own random order.
 class FText extends StatefulWidget {
   final String data;
   final TextAlign? textAlign;
@@ -28,7 +28,7 @@ class FText extends StatefulWidget {
 }
 
 class _FTextState extends State<FText> with SingleTickerProviderStateMixin {
-  /// Длительность перехода.
+  /// Transition duration.
   static const Duration _duration = Duration(milliseconds: 800);
 
   late final AnimationController _controller;
@@ -38,7 +38,7 @@ class _FTextState extends State<FText> with SingleTickerProviderStateMixin {
   String _from = '';
   String _to = '';
 
-  /// Случайный момент переключения 0..1 для каждого символа.
+  /// Per-character random switch moment, 0..1 of the animation timeline.
   List<double> _switchAt = const [];
 
   @override
@@ -53,7 +53,8 @@ class _FTextState extends State<FText> with SingleTickerProviderStateMixin {
   @override
   void didUpdateWidget(FText oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Текст не изменился (например, ребилд из-за смены темы) — не анимируем.
+    // Text unchanged (e.g. a rebuild caused by the theme switch) — do not
+    // animate.
     if (widget.data == oldWidget.data || widget.data == _display) return;
     _scramble(from: _display, to: widget.data);
   }
@@ -65,9 +66,9 @@ class _FTextState extends State<FText> with SingleTickerProviderStateMixin {
   }
 
   void _scramble({required String from, required String to}) {
-    // Стартуем из текущего отображаемого состояния: если дёрнуть переключатель
-    // посреди анимации, переход продолжится с текущей смеси букв, а не
-    // начнётся заново.
+    // Start from the currently displayed state: if the toggle is flipped
+    // mid-animation, the transition continues from the current mix of old
+    // and new letters instead of starting over.
     final count = max(from.length, to.length);
     _switchAt = List<double>.generate(count, (_) => _random.nextDouble());
     _from = from;
@@ -86,6 +87,9 @@ class _FTextState extends State<FText> with SingleTickerProviderStateMixin {
   }
 
   String _compose(double t) {
+    // Stitch the intermediate string: characters past their switch moment
+    // come from the new text, the rest from the old one. Indices beyond the
+    // shorter string simply have no character (text may shrink or grow).
     final buffer = StringBuffer();
     for (var i = 0; i < _switchAt.length; i++) {
       if (t >= _switchAt[i]) {

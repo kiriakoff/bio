@@ -32,7 +32,8 @@ void main() {
     expect(find.text('Стек'), findsOneWidget);
     expect(find.text('Сейчас'), findsOneWidget);
     expect(find.text('GitHub'), findsOneWidget);
-    // 'RU'/'EN' встречаются и в тумблерах, и в стеке языков — ищем именно тумблер.
+    // 'RU'/'EN' appear both in the toggles and in the language stack —
+    // target the toggle specifically.
     expect(find.widgetWithText(FStateButton, 'RU'), findsOneWidget);
     expect(find.widgetWithText(FStateButton, 'EN'), findsOneWidget);
   });
@@ -55,19 +56,20 @@ void main() {
     await pumpApp(tester);
 
     await tester.tap(find.widgetWithText(FStateButton, 'EN'));
-    await tester.pump(); // холостой кадр: анимация стартует с elapsed = 0
-    // 80 мс из 800: easeOutCubic даёт прогресс ~0.27, то есть у каждого
-    // символа шанс 27% уже переключиться. Имя (14 символов) не может
-    // собраться в EN целиком (0.27^14 ~ 1e-8)...
+    await tester.pump(); // throwaway frame: the animation starts with elapsed = 0
+    // 80ms out of 800: easeOutCubic yields ~0.27 progress, so each character
+    // has a 27% chance of having flipped already. The name (14 characters)
+    // cannot have fully assembled into EN (0.27^14 ~ 1e-8)...
     await tester.pump(const Duration(milliseconds: 80));
     expect(find.text('Fedor Kiriakov'), findsNothing);
-    // ...а длинный RU-абзац гарантированно уже тронут: вероятность, что все
-    // ~135 символов остались на месте, пренебрежимо мала (0.73^135).
+    // ...while the long RU paragraph is guaranteed to be touched already:
+    // the chance of all ~135 characters staying in place is negligible
+    // (0.73^135).
     expect(find.text(Strings.ru.aboutItems[0]), findsNothing);
 
     await tester.pumpAndSettle();
 
-    // К концу анимации весь текст зафиксировался в EN.
+    // By the end of the animation all the text has settled into EN.
     expect(find.text('Fedor Kiriakov'), findsOneWidget);
     expect(find.text('About'), findsOneWidget);
   });
@@ -75,7 +77,7 @@ void main() {
   testWidgets('narrow window overlay covers page and localizes', (tester) async {
     final appState = AppState();
     tester.view.devicePixelRatio = 3;
-    tester.view.physicalSize = const Size(280 * 3, 700 * 3); // узкое окно
+    tester.view.physicalSize = const Size(280 * 3, 700 * 3); // narrow window
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
@@ -90,15 +92,16 @@ void main() {
 
     expect(find.text('Сделай пошире'), findsOneWidget);
     expect(overlayOpacity().opacity, 1);
-    // Страница в узком режиме не строится вовсе — «вместо», а не «поверх».
+    // The page is not built at all in narrow mode — "instead of", not
+    // "on top of".
     expect(find.text('Фёдор Кирьяков'), findsNothing);
 
-    // Расширили окно — плашка полностью растворилась.
+    // Widened the window — the plate has fully faded out.
     tester.view.physicalSize = const Size(900 * 3, 700 * 3);
     await tester.pumpAndSettle();
     expect(overlayOpacity().opacity, 0);
 
-    // Снова узко и переключили язык — сообщение локализовалось.
+    // Narrow again plus a language switch — the message got localized.
     tester.view.physicalSize = const Size(280 * 3, 700 * 3);
     appState.setLanguage(AppLanguage.en);
     await tester.pumpAndSettle();
@@ -118,8 +121,8 @@ void main() {
     expect(moonButton, findsOneWidget);
 
     await tester.tap(moonButton);
-    await tester.pump(); // первый кадр: тикер стартует с elapsed = 0
-    await tester.pump(const Duration(milliseconds: 150)); // прогресс анимации
+    await tester.pump(); // first frame: the ticker starts with elapsed = 0
+    await tester.pump(const Duration(milliseconds: 150)); // animation in progress
 
     expect(appState.themeTransitionActive, isTrue);
     expect(appState.themeT, greaterThan(0.0));
@@ -143,9 +146,10 @@ void main() {
     await tester.pumpAndSettle();
 
     appState.setDark(false, origin: const Offset(400, 100), maxDist: 1500);
-    await tester.pump(); // первый кадр перехода: elapsed = 0
+    await tester.pump(); // first frame of the transition: elapsed = 0
 
-    // Фон не должен мигнуть светлым: прогресс волны 0, круга нет, база — тёмная.
+    // The background must not flash light: wave progress 0, no circle yet,
+    // the base fill is dark.
     expect(appState.waveT, 0.0);
     expect(appState.waveFrom, appState.palette.background);
     expect(appState.waveTo, isNot(appState.waveFrom));
@@ -170,10 +174,10 @@ void main() {
     expect(appState.dark, isTrue);
 
     appState.setDark(false, origin: const Offset(400, 100), maxDist: 4000);
-    await tester.pump(); // первый кадр перехода: прогресс 0
+    await tester.pump(); // first frame of the transition: progress 0
 
-    // Берём именно бокс с заливкой: внутри поверхности теперь есть ещё
-    // форграунд-бокс с обводкой (он без цвета).
+    // Pick the box with the fill specifically: a surface now also contains
+    // a foreground box carrying the outline (that one has no color).
     final cardDecoration = find
         .descendant(
           of: find.byType(FCard),
@@ -183,7 +187,7 @@ void main() {
         )
         .first;
 
-    // Поверхность не должна щёлкаться в светлую на старте перехода.
+    // The surface must not snap to light at the very start of the transition.
     final decorationAtStart = tester.widget<DecoratedBox>(cardDecoration).decoration as BoxDecoration;
     expect(decorationAtStart.color, Palette.dark.background);
 
@@ -191,7 +195,7 @@ void main() {
     expect(appState.dark, isFalse);
     expect(appState.themeT, 0.0);
 
-    // По окончании перехода поверхность обязана быть светлой, а не застрять в тёмной.
+    // Once the transition is over the surface must be light, not stuck dark.
     final decorationAtEnd = tester.widget<DecoratedBox>(cardDecoration).decoration as BoxDecoration;
     expect(decorationAtEnd.color, Palette.light.background);
   });
@@ -212,11 +216,12 @@ void main() {
 
     Offset probeOffset() => tester.getTopLeft(find.byKey(const Key('probe'))) - tester.getTopLeft(find.byType(FSurface));
 
-    // В светлой теме обводки нет — ребёнок прижат к углу поверхности.
+    // The light theme has no outline — the child sits flush with the
+    // surface corner.
     expect(probeOffset(), Offset.zero);
 
-    // В тёмной появляется обводка 0.9px, но она не должна влезать в раскладку:
-    // контент обязан остаться ровно на том же месте.
+    // The dark theme adds a 0.9px outline, but it must stay out of layout:
+    // the content has to remain in exactly the same spot.
     appState.setDark(true);
     await tester.pumpAndSettle();
     expect(probeOffset(), Offset.zero);
@@ -236,7 +241,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 60));
     final midFlight = scrollable().position.pixels;
 
-    // Второй тик в процессе анимации: не рвёт её, а продолжает движение.
+    // A second tick mid-animation: it does not tear the animation down,
+    // it continues the motion.
     await tester.sendEventToBinding(pointer.scroll(const Offset(0, 300)));
     await tester.pump(const Duration(milliseconds: 60));
     final glued = scrollable().position.pixels;
@@ -255,18 +261,19 @@ void main() {
     Transform buttonTransform() => tester.widget<Transform>(find.ancestor(of: github, matching: find.byType(Transform)).first);
 
     final gesture = await tester.startGesture(tester.getCenter(github));
-    await tester.pump(); // холостой кадр: тикер падения стартует с elapsed = 0
-    await tester.pump(const Duration(milliseconds: 20)); // кнопка в середине падения
+    await tester.pump(); // throwaway frame: the fall ticker starts with elapsed = 0
+    await tester.pump(const Duration(milliseconds: 20)); // button mid-fall
 
     final midFallOffset = buttonTransform().transform.getTranslation().y;
     expect(midFallOffset, greaterThan(-3.0));
     expect(midFallOffset, lessThan(0.0));
 
-    // Теряем фокус окна в момент падения.
+    // The window loses focus mid-fall.
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
     await tester.pump(const Duration(milliseconds: 15));
 
-    // Кнопка продолжает падать (значение растёт к 0 — прижатому), а не отскакивает.
+    // The button keeps falling (the value grows toward 0, the pressed
+    // state) instead of bouncing back.
     final stillFallingOffset = buttonTransform().transform.getTranslation().y;
     expect(stillFallingOffset, greaterThan(midFallOffset));
 
@@ -274,7 +281,7 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
 
-    // Итог: доиграла падение и полностью вернулась в исходное положение.
+    // Outcome: it finished the fall and returned fully to its resting spot.
     expect(buttonTransform().transform.getTranslation().y, -3.0);
   });
 
@@ -290,7 +297,7 @@ void main() {
 
     final transitionIdAfterFirstToggle = appState.transitionId;
 
-    // Повторный тап по уже выбранной кнопке не должен перезапускать волну.
+    // Tapping an already selected button again must not restart the wave.
     await tester.tap(moonButton);
     await tester.pump();
     await tester.pumpAndSettle();

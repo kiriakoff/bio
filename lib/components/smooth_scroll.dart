@@ -8,10 +8,11 @@ class FSmoothScroll extends StatefulWidget {
   final ScrollController controller;
   final Widget child;
 
-  /// Коэффициент экспоненциального сближения, 1/сек.
+  /// Exponential approach rate, 1/second.
   final double smoothness;
 
-  /// Минимальная скорость подхода к цели, пикс/сек — срезает хвост асимптоты.
+  /// Minimum approach speed, px/s — trims off the asymptotic tail of the
+  /// exponential so the last few pixels do not drag on forever.
   final double minVelocity;
 
   const FSmoothScroll({
@@ -44,7 +45,8 @@ class _FSmoothScrollState extends State<FSmoothScroll>
     final position = widget.controller.position;
     if (!position.hasContentDimensions || !position.hasPixels) return;
 
-    // Каждый тик колеса лишь отодвигает цель; движение к ней непрерывно.
+    // Each wheel tick only pushes the target further away; the motion toward
+    // it stays continuous (the ticker keeps running between ticks).
     if (!_scrolling) {
       _target = position.pixels;
       _scrolling = true;
@@ -61,7 +63,8 @@ class _FSmoothScrollState extends State<FSmoothScroll>
     final position = widget.controller.position;
     if (!position.hasContentDimensions || !position.hasPixels) return _stop();
 
-    // Внешняя прокрутка (тач, скроллбар) — отдаём управление нативу.
+    // External scrolling (touch, scrollbar) is in progress — yield to the
+    // native behavior instead of fighting over the position.
     if (position.isScrollingNotifier.value) return _stop();
 
     final dt = _lastElapsed == null
@@ -77,6 +80,8 @@ class _FSmoothScrollState extends State<FSmoothScroll>
       return _stop();
     }
 
+    // Exponential approach: the closer we are, the slower we move, but never
+    // slower than minVelocity — otherwise the tail of the ease would drag on.
     final velocity = max(widget.smoothness * diff.abs(), widget.minVelocity);
     final step = min(velocity * dt, diff.abs());
     position.jumpTo(position.pixels + diff.sign * step);

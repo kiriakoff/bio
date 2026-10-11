@@ -51,19 +51,20 @@ class AppState extends ChangeNotifier {
 
   AppLanguage get language => _language;
 
-  /// Итоговый выбор темы (намерение), независимо от прогресса анимации.
+  /// The effective theme choice (the intent), regardless of animation progress.
   bool get dark => _darkOverride ?? _systemDark;
 
-  /// Значение themeT на старте текущего/последнего перехода.
+  /// The themeT value at the start of the current/last transition.
   double get transitionFromT => _transitionFromT;
 
-  /// Целевое значение themeT текущего/последнего перехода.
+  /// The target themeT of the current/last transition.
   double get transitionToT => dark ? 1.0 : 0.0;
 
-  /// Текущее анимированное значение темы: 0 — светлая, 1 — тёмная.
+  /// The current animated theme value: 0 — light, 1 — dark.
   double get themeT => _themeT;
 
-  /// Прогресс фронта волны к целевой теме: 0..1, быстрый старт, мягкое затухание.
+  /// Progress of the wave front toward the target theme: 0..1.
+  /// Fast start, soft settle (see the curve in _onTick).
   double get waveT => _progress;
 
   bool get themeTransitionActive => _ticker.isActive;
