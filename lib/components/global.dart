@@ -89,20 +89,24 @@ class Palette {
     secondary: Color.fromARGB(255, 175, 175, 175),
     tertiary: Color.fromARGB(255, 140, 140, 140),
     faint: Color.fromARGB(255, 100, 100, 100),
+    // Dark theme inversion: the resting (raised) state is the prominent one —
+    // a bright glow and a crisp outline; the pressed (sunken) state dims down.
+    // This mirrors the light theme, where a raised button casts a visible
+    // drop shadow and a pressed one sinks flat.
     shadowColor: Color.fromARGB(255, 143, 216, 255),
-    shadowRestAlpha: 0.12,
-    shadowRestBlur: 16,
-    shadowRestSpread: 1,
+    shadowRestAlpha: 0.34,
+    shadowRestBlur: 24,
+    shadowRestSpread: 2,
     shadowRestOffsetY: 0,
-    shadowPressAlpha: 0.34,
-    shadowPressBlur: 24,
-    shadowPressSpread: 2,
+    shadowPressAlpha: 0.12,
+    shadowPressBlur: 16,
+    shadowPressSpread: 1,
     shadowPressOffsetY: 0,
     borderColor: Color.fromARGB(255, 143, 216, 255),
-    borderRestAlpha: 0.22,
-    borderRestWidth: 0.9,
-    borderPressAlpha: 0.45,
-    borderPressWidth: 1.2,
+    borderRestAlpha: 0.45,
+    borderRestWidth: 1.2,
+    borderPressAlpha: 0.22,
+    borderPressWidth: 0.9,
   );
 
   static Palette? lerp(Palette a, Palette b, double t) {
