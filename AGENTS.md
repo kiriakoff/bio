@@ -45,7 +45,10 @@ There is **no Material** — the entire design system is custom
 - **Theme transition.** `WavePainter` paints a blurred circle growing from
   the press origin. Each `FSurface` plays its own copy of the progress with a
   cascade delay (distance from the wave origin + random jitter, see
-  `_staggeredProgress`), so surfaces flip one after another.
+  `_staggeredProgress`), so surfaces flip one after another. A surface can
+  opt out with `stagger: false` — then it flips exactly while the wave front
+  passes over it (used for the photo: its thin ring reads as abrupt when
+  played inside a stagger window).
 - **`FSurface.lift`** (default `false`) — the raised resting position. It is
   enabled **only** for `FButton` / `FStateButton`. Static surfaces (badges,
   cards, photo) must not move: they would misalign and jump during the theme

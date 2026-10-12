@@ -227,6 +227,48 @@ void main() {
     expect(probeOffset(), Offset.zero);
   });
 
+  testWidgets('non-staggered surface flips exactly as the wave front passes', (tester) async {
+    final appState = AppState();
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: appState,
+        child: Center(
+          child: FSurface(
+            width: 60,
+            height: 30,
+            stagger: false,
+            child: const SizedBox(width: 10, height: 10),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Origin in the surface center: the front crosses it during the first
+    // 15% of the wave.
+    final origin = tester.getCenter(find.byType(FSurface));
+    appState.setDark(true, origin: origin, maxDist: 2000);
+    await tester.pump(); // throwaway frame: the ticker starts with elapsed = 0
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // The wave is still running globally...
+    expect(appState.themeTransitionActive, isTrue);
+    // ...but the front has already passed the surface — it is fully dark.
+    final fillBox = tester.widget<DecoratedBox>(
+      find.descendant(
+        of: find.byType(FSurface),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is DecoratedBox && (widget.decoration as BoxDecoration).color != null,
+        ),
+      ),
+    );
+    expect((fillBox.decoration as BoxDecoration).color, Palette.dark.background);
+
+    // The wave ticker is still running by design — let it finish so the test
+    // does not end with a live animation.
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('wheel scroll glues animations together', (tester) async {
     await pumpApp(tester);
 

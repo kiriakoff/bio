@@ -17,6 +17,7 @@ class FSurface extends StatefulWidget {
     this.margin,
     this.color,
     this.lift = false,
+    this.stagger = true,
     this.elevation = 1,
     this.hilight = 0,
     this.round = false,
@@ -43,6 +44,12 @@ class FSurface extends StatefulWidget {
   /// and do not jump during the theme transition.
   final bool lift;
 
+  /// Whether the surface participates in the staggered cascade during the
+  /// theme transition (see [_staggeredProgress]). Thin decorative outlines
+  /// (e.g. the photo ring) look better synced with the wave front, so such
+  /// surfaces can opt out.
+  final bool stagger;
+
   final double elevation;
   final double hilight;
   final bool round;
@@ -66,6 +73,22 @@ class _FSurfaceState extends State<FSurface> {
   /// pressed), the later it switches, plus a bit of randomness so the
   /// cascade does not look mechanical.
   double _staggeredProgress(AppState app) {
+    // Opted-out surfaces stay in rhythm with the wave: their progress is the
+    // fraction of the wave front that has passed over this surface, so the
+    // flip happens exactly while the front crosses it (with a small soft
+    // band instead of an instant flip).
+    if (!widget.stagger &&
+        app.waveOrigin != null &&
+        app.waveMaxDist > 0) {
+      final renderObject = context.findRenderObject();
+      if (renderObject is RenderBox && renderObject.hasSize) {
+        final center = renderObject.localToGlobal(renderObject.size.center(Offset.zero));
+        final dist = (center - app.waveOrigin!).distance;
+        return ((app.waveT * app.waveMaxDist - dist) / (app.waveMaxDist * 0.15))
+            .clamp(0.0, 1.0);
+      }
+    }
+
     if (_cachedTransitionId != app.transitionId) {
       var normDist = 0.5;
       final renderObject = context.findRenderObject();

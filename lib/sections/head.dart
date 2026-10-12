@@ -30,6 +30,10 @@ class HeadSection extends StatelessWidget {
       children: [
         FSurface(
           round: true,
+          // Единственная видимая тема-зависимая краска фото — тонкое кольцо:
+          // в каскаде оно возникало рывком не в такт волне, поэтому фронт
+          // волны синхронизирован геометрически.
+          stagger: false,
           width: photoSize,
           height: photoSize,
           constraints: BoxConstraints.tight(Size(photoSize, photoSize)),
