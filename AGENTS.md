@@ -17,7 +17,7 @@ There is **no Material** — the entire design system is custom
 | `flutter analyze` | linter; must stay clean |
 | `flutter test` | widget tests, `test/smoke_test.dart` |
 | `flutter build web --release` | production build into `build/web` |
-| Deployment | manual pipeline, see below (scripts are not in the repo) |
+| Deployment | automatic: push to `master` (see *Deployment*) |
 
 ## Architecture
 
@@ -104,25 +104,28 @@ There is **no Material** — the entire design system is custom
 - Old Flutter service workers are unregistered on load (deprecated upstream,
   they served stale bundles).
 
-## Deployment (manual pipeline, not in the repo)
+## Deployment (CI-driven)
 
-1. `flutter build web --release`.
-2. Stage: copy `build/web`; replace
-   `<script>/*__BIO_SIZES__*/</script>` with
-   `<script>window.__BIO_SIZES__ = {...};</script>` where the map holds
-   decoded byte sizes of `main.dart.js`, `canvaskit/**/*.wasm|js`,
-   `assets/assets/fonts/*.ttf`, images and manifests; drop the `skwasm`,
-   `skwasm_heavy`, `wimp`, `webparagraph` dirs and `*.symbols` (this build
-   never downloads them); add an nginx config with gzip
-   (`application/javascript`, `application/wasm`, `application/json`,
-   `font/ttf`, `application/octet-stream`, …) and
-   `location /canvaskit/ { expires 30d; }`; Dockerfile = `nginx:alpine` with
-   that config + `COPY web/`.
-3. `tar` + `scp` to `f@kiria-f.ru:/tmp`, then on the server:
-   `docker build -t kiraneser/bio:latest <stage>` and
-   `docker compose -f /app/bio/docker-compose.yml up -d`.
-4. Server notes: the login shell is **fish** — pipe bash scripts via
-   `ssh host bash` and avoid `VAR=value cmd` syntax.
+Push to `master` runs `.github/workflows/build-and-deploy.yml`:
+
+1. GitHub Actions builds the Docker image. **`tool/prepare_web.dart` runs
+   inside the build** (`dart run tool/prepare_web.dart`): it injects the
+   `window.__BIO_SIZES__` map into `build/web/index.html` and prunes unused
+   renderer engines / `*.symbols`. The nginx stage copies
+   `nginx/default.conf` (gzip for JS/WASM/fonts, long cache for
+   `/canvaskit/`) — do not lose either, they are load-bearing.
+2. The image is pushed to `ghcr.io/kiriakoff/bio:latest`.
+3. `peter-evans/repository-dispatch` (secret `DEPLOY_TOKEN`, a fine-grained
+   PAT with contents:write) triggers `repository_dispatch: Deploy role` in
+   **kiriakoff/ansible-master**, whose `deploy.yml` runs the ansible `bio`
+   role over SSH (`--limit fornex`): the host pulls the new image and
+   recreates the container.
+
+Manual fallback (no CI): `flutter build web --release`, then run
+`tool/prepare_web.dart` (`dart run tool/prepare_web.dart`), then build the
+image from the repo Dockerfile and push/deploy as above — the repo Dockerfile
+already does both serving-critical steps, so prefer it over hand-rolled
+staging.
 
 ## Gotchas
 
